@@ -281,20 +281,21 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
     final_t = (bc_v1 * vr2.t + bc_v2 * vr1.t + bc_v3 * vl2.t);
 
     // method 2, just interpolate through left_edge to right_edge
-    /*final_r = ((1-gamma) * left_edge.r + gamma * right_edge.r) / 254;
+    final_r = ((1-gamma) * left_edge.r + gamma * right_edge.r) / 254;
     final_g = ((1-gamma) * left_edge.g + gamma * right_edge.g) / 254;
     final_b = ((1-gamma) * left_edge.b + gamma * right_edge.b) / 254;
     final_s = ((1-gamma) * left_edge.s + gamma * right_edge.s);
-    final_t = ((1-gamma) * left_edge.t + gamma * right_edge.t);*/
+    final_t = ((1-gamma) * left_edge.t + gamma * right_edge.t);
 
     if(texture_mapping) {
       // change the rgb
-      int x_pixel = (float)texture_img.sizeX * final_s;
-      int y_pixel = (float)texture_img.sizeY * final_t;
-      final_r = texture_img.data[(y_pixel * texture_img.sizeX + x_pixel) * 3] / 254.0;
-      final_g = texture_img.data[(y_pixel * texture_img.sizeX + x_pixel) * 3 + 1] / 254.0;
-      final_b = texture_img.data[(y_pixel * texture_img.sizeX + x_pixel) * 3 + 2] / 254.0;
+      int x_pixel = (float)(texture_img.sizeX-10) * final_s;
+      int y_pixel = (float)(texture_img.sizeY-10) * final_t;
+      final_r = (int)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3] / 254.0;
+      final_g = (int)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3 + 1] / 254.0;
+      final_b = (int)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3 + 2] / 254.0;
     }
+    
     //printf("%d %d %d", texture_img.data[0], texture_img.data[1], texture_img.data[2]);
     colorPixel((float)i, row, final_r, final_g, final_b);
     //printf("%d %d: v1=%f, v2=%f, v3=%f, r=%f, g=%f, b=%f\n", (int)row, i, bc_v1, bc_v2, bc_v3, final_r, final_g, final_b);
@@ -331,19 +332,19 @@ void drawContents(void) {
   readInput();
   int i, j;
   float final_r, final_g, final_b;
-  
+  /*
   for(i = 0; i < numberOfPixels-10; i++) {
     for(j = 0; j < numberOfPixels-10; j++) {
       // change the rgb
-      final_r = (int)texture_img.data[(i * texture_img.sizeX + j) * 3] / 255.0;
-      final_g = (int)texture_img.data[(i * texture_img.sizeX + j) * 3 + 1] / 255.0;
-      final_b = (int)texture_img.data[(i * texture_img.sizeX + j) * 3 + 2] / 255.0;
+      final_r = (int)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3] / 255.0;
+      final_g = (int)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 1] / 255.0;
+      final_b = (int)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 2] / 255.0;
       //printf("%d %d %d", texture_img.data[0], texture_img.data[1], texture_img.data[2]);
       colorPixel(j, i, final_r, final_g, final_b);
     }
   }
   return;
-
+  */
   
   for(i = 0; i < num_vertices / 3;i++) {
     // send the three vertices to DrawTriangle()
