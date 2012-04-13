@@ -187,26 +187,18 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
       if((v1.x + v2.x) < (v1.x + v3.x)) {
         vl1 = v1; vl2 = v2;
         vr1 = v1; vr2 = v3;
-   /*     left_edge =  findLeftEdge(v1, v2, row);
-        right_edge =  findRightEdge(v1, v3, row);*/
       } else {
         vl1 = v1; vl2 = v3;
         vr1 = v1; vr2 = v2;
-     /*   left_edge =  findLeftEdge(v1, v3, row);
-        right_edge =  findRightEdge(v1, v2, row);*/
       }
     } else {
       // then v2-v3 is the other pair of vertices we need
       if((v1.x + v2.x) < (v2.x + v3.x)) {
         vl1 = v2; vl2 = v1;
         vr1 = v2; vr2 = v3;
-        /*left_edge =  findLeftEdge(v1, v2, row);
-        right_edge =  findRightEdge(v2, v3, row);*/
       } else {
         vl1 = v2; vl2 = v3;
         vr1 = v2; vr2 = v1;
-        /*left_edge =  findLeftEdge(v2, v3, row);
-        right_edge =  findRightEdge(v1, v2, row);*/
       }
     }
   } else if(row == v1.y) {
@@ -252,13 +244,9 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
     if((v1.x + v3.x) < (v2.x + v3.x)) {
       vl1 = v3; vl2 = v1;
       vr1 = v3; vr2 = v2;
-      /*left_edge =  findLeftEdge(v1, v3, row);
-      right_edge =  findRightEdge(v2, v3, row);*/
     } else {
       vl1 = v3; vl2 = v2;
       vr1 = v3; vr2 = v1;
-      /*left_edge =  findLeftEdge(v2, v3, row);
-      right_edge =  findRightEdge(v1, v3, row);*/
     }
   }
 
@@ -289,18 +277,13 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
 
     if(texture_mapping) {
       // change the rgb
-      int x_pixel = (float)(texture_img.sizeX-10) * final_s;
-      int y_pixel = (float)(texture_img.sizeY-10) * final_t;
-      final_r = (int)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3] / 254.0;
-      final_g = (int)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3 + 1] / 254.0;
-      final_b = (int)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3 + 2] / 254.0;
+      int x_pixel = (float)texture_img.sizeX * final_s;
+      int y_pixel = (float)texture_img.sizeY * final_t;
+      final_r = (unsigned char)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3] / 255.0;
+      final_g = (unsigned char)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3 + 1] / 255.0;
+      final_b = (unsigned char)texture_img.data[(y_pixel * (texture_img.sizeX+1) + x_pixel) * 3 + 2] / 255.0;
     }
-    
-    //printf("%d %d %d", texture_img.data[0], texture_img.data[1], texture_img.data[2]);
     colorPixel((float)i, row, final_r, final_g, final_b);
-    //printf("%d %d: v1=%f, v2=%f, v3=%f, r=%f, g=%f, b=%f\n", (int)row, i, bc_v1, bc_v2, bc_v3, final_r, final_g, final_b);
-    //printf("- gamma=%f, le_s = %f, le_t = %f, re_s=%f, re_t=%f\n", gamma, left_edge.s, left_edge.t, right_edge.s, right_edge.t);
-    //printf("%d %d: s=%f, t=%f\n", (int)row, i, final_s, final_t);
   }
 }
 
@@ -332,14 +315,15 @@ void drawContents(void) {
   readInput();
   int i, j;
   float final_r, final_g, final_b;
+  
   /*
+  // COPY THE PICTURE
   for(i = 0; i < numberOfPixels-10; i++) {
     for(j = 0; j < numberOfPixels-10; j++) {
       // change the rgb
-      final_r = (int)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3] / 255.0;
-      final_g = (int)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 1] / 255.0;
-      final_b = (int)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 2] / 255.0;
-      //printf("%d %d %d", texture_img.data[0], texture_img.data[1], texture_img.data[2]);
+      final_r = (unsigned char)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3] / 255.0;
+      final_g = (unsigned char)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 1] / 255.0;
+      final_b = (unsigned char)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 2] / 255.0;
       colorPixel(j, i, final_r, final_g, final_b);
     }
   }
@@ -347,6 +331,7 @@ void drawContents(void) {
   */
   
   for(i = 0; i < num_vertices / 3;i++) {
+
     // send the three vertices to DrawTriangle()
     DrawTriangle(verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2]);
     flip_color = 1 - flip_color;
@@ -405,7 +390,6 @@ void display(void)
 {
 
 /* Low-level system does it */
-  //colorPixel(25,25,0.8,0.1,0.1);
   drawContents();
   drawBigPixelArray();
 }
