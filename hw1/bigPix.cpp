@@ -42,52 +42,22 @@ bool texture_mapping = 0;
 
 int flip_color = 0;
 
-vertex findLeftEdge(vertex v1, vertex v2, float row) {
-  vertex left_edge;
-  
-  if(v1.y == v2.y) {
-    // they're on the same y-axis
-    if(v1.x < v2.x)
-        return v1;
-    else
-        return v2;
-  }
-
-  float p;  // proportion
-  p = (row - v2.y) / (v1.y - v2.y);
-
-  //float col;
-  //col = (1-p) * v2.x + p * v1.x;
-  left_edge.y = row;
-  left_edge.x = ceil((1-p) * v2.x + p * v1.x);
-  left_edge.r = (1-p) * v2.r + p * v1.r;
-  left_edge.g = (1-p) * v2.g + p * v1.g;
-  left_edge.b = (1-p) * v2.b + p * v1.b;
-  left_edge.s = (1-p) * v2.s + p * v1.s;
-  left_edge.t = (1-p) * v2.t + p * v1.t;
-  
-  //printf("==left, row%f = %f\n", row, col);
-
-  // TODO, need to return a vertex object with also the interpolated rgb values at the left edge
-  return left_edge;
+vertex findLeftEdge(vertex v1, vertex v2) {
+  return v1.x < v2.x ? v1 : v2;
 }
 
-vertex findRightEdge(vertex v1, vertex v2, float row) {
+vertex findRightEdge(vertex v1, vertex v2) {
+  return v1.x > v2.x ? v1 : v2;
+}
+
+vertex findIntersection(vertex v1, vertex v2, float row) {
   vertex right_edge;
-  
-  if(v1.y == v2.y) {
-    // they're on the same y-axis
-    if(v1.x > v2.x)
-        return v1;
-    else
-        return v2;
-  }
 
   float p;  // proportion
   p = (row - v2.y) / (v1.y - v2.y);
 
   right_edge.y = row;
-  right_edge.x = floor((1-p) * v2.x + p * v1.x);
+  right_edge.x = (1-p) * v2.x + p * v1.x;
   right_edge.r = (1-p) * v2.r + p * v1.r;
   right_edge.g = (1-p) * v2.g + p * v1.g;
   right_edge.b = (1-p) * v2.b + p * v1.b;
@@ -150,128 +120,85 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
   // find left/right edge points
   vertex left_edge;
   vertex right_edge;
+  vertex temp;
   vertex vl1, vl2, vr1, vr2;
-  vertex vertex_x_sorted[3] = {v1, v2, v3}; // temp to hold vertices
-  vertex vertex_y_sorted[3] = {v1, v2, v3}; // temp to hold vertices
-  float alpha, beta, gamma;
+  vertex vertext_pair[2][2];
+  vertex third_vertex;
+  int vertex_pair_count = 0;
+  int vertex_pair_combo = 0;
+  float gamma;
   float bc_v1, bc_v2, bc_v3;  // the barycentric coordintes for point r
   float final_r, final_g, final_b, final_s, final_t;
 
-  // 1. which two sets of vertices are we looking at? Options: ab, bc, cb
-  /*
-  sortByX(vertex_x_sorted);
-  sortByY(vertex_y_sorted);
 
-  // 1. Are we above/below the middle?
-  if(row <= vertex_y_sorted[1].y) {
-    // below, so vertex_y_sorted[0] will be used for both
-    if(vertex_y_sorted[0].x <= vertex_x_sorted[1].x) {
-      vl1 = vertex_y_sorted[0];
-    }
-  } else {
-
-  }
-
-  */
-
-
-
-
-
-  //  v1.y <= row <= v2.y
+  
   if((min(v1.y, v2.y) < row) && (row < max(v1.y, v2.y))) {
-    // then v1-v2 is one of the pairs of vertices we need
-    if((min(v1.y, v3.y) < row) && (row < max(v1.y, v3.y))) {
-      // then v1-v3 is the other pair of vertices we need
-      // out of v1-v2, v1-v3, need to find the left edge one
-      if((v1.x + v2.x) < (v1.x + v3.x)) {
-        vl1 = v1; vl2 = v2;
-        vr1 = v1; vr2 = v3;
-      } else {
-        vl1 = v1; vl2 = v3;
-        vr1 = v1; vr2 = v2;
-      }
-    } else {
-      // then v2-v3 is the other pair of vertices we need
-      if((v1.x + v2.x) < (v2.x + v3.x)) {
-        vl1 = v2; vl2 = v1;
-        vr1 = v2; vr2 = v3;
-      } else {
-        vl1 = v2; vl2 = v3;
-        vr1 = v2; vr2 = v1;
-      }
-    }
-  } else if(row == v1.y) {
-    // means v1 should only be used atleast ONCE. The other ones are arbitrary
-    if(v1.x <= min(v2.x, v3.x)) {
-      // v1 IS the left edge, what is the right edge?
-      vl1 = v1; vl2 = v1;
-      if((v1.y < min(v2.y, v3.y)) || (v1.y > max(v2.y, v3.y))) {
-        vr1 = v1; vr2 = v1; // v1 is the top/bottom corner, so also right edge
-      } else {
-        vr1 = v2; vr2 = v3; // right edge must be the other two vertices
-      }
-    } else {
-      // v1 IS the right edge
-      vr1 = v1; vr2 = v1; 
-      if((v1.y < min(v2.y, v3.y)) || (v1.y > max(v2.y, v3.y))) {
-        vl1 = v1; vl2 = v1; // v1 is the top/bottom corner, so also left edge
-      } else {
-        vl1 = v2; vl2 = v3; // left edge must be the other two vertices
-      }
-    }
-  } else if(row == v2.y) {
-    // means v2 should only be used atleast ONCE. The other ones are arbitrary
-    if(v2.x <= min(v1.x, v3.x)) {
-      // v2 IS the left edge
-      vl1 = v2; vl2 = v2;
-      if((v2.y < min(v1.y, v3.y)) || (v2.y > max(v1.y, v3.y))) {
-        vr1 = v2; vr2 = v2; // v2 is the top/bottom corner, so also right edge
-      } else {
-        vr1 = v1; vr2 = v3; // right edge must be the other two vertices
-      }
-    } else {
-      // v2 IS the right edge
-      vr1 = v2; vr2 = v2; 
-      if((v2.y < min(v1.y, v3.y)) || (v2.y > max(v1.y, v3.y))) {
-        vl1 = v2; vl2 = v2; // v1 is the top/bottom corner, so also left edge
-      } else {
-        vl1 = v1; vl2 = v3; // left edge must be the other two vertices
-      }
-    }
-  } else {
-    // then we KNOW v1-v3 and v2-v3 are the two pairs we are looking for
-    if((v1.x + v3.x) < (v2.x + v3.x)) {
-      vl1 = v3; vl2 = v1;
-      vr1 = v3; vr2 = v2;
-    } else {
-      vl1 = v3; vl2 = v2;
-      vr1 = v3; vr2 = v1;
-    }
+    vertext_pair[vertex_pair_count][0]  = v1;
+    vertext_pair[vertex_pair_count][1]  = v2;
+    vertex_pair_count++;
+    vertex_pair_combo += 1;
+    third_vertex = v3;
+  }
+  if((min(v1.y, v3.y) < row) && (row < max(v1.y, v3.y))) {
+    vertext_pair[vertex_pair_count][0]  = v1;
+    vertext_pair[vertex_pair_count][1]  = v3;
+    third_vertex = v2;
+    vertex_pair_count++;
+    vertex_pair_combo += 2;
+  }
+  if((min(v2.y, v3.y) < row) && (row < max(v2.y, v3.y))) {
+    vertext_pair[vertex_pair_count][0]  = v2;
+    vertext_pair[vertex_pair_count][1]  = v3;
+    third_vertex = v1;
+    vertex_pair_count++;
+    vertex_pair_combo += 4;
+  }
+  if(vertex_pair_count == 1) {
+    // same line, take ONE point from vertext_pair[0] and the 3rd point not being used
+    vertext_pair[1][0] = vertext_pair[0][0];
+    vertext_pair[1][1] = third_vertex;
+    vertex_pair_count++;
+  } else if(vertex_pair_count == 0) {
+    // dummy?
+    vertext_pair[0][0] = v1;
+    vertext_pair[0][0] = v1;
   }
 
-  left_edge =  findLeftEdge(vl1, vl2, row);
-  right_edge =  findRightEdge(vr1, vr2, row);
+  if(v1.y == v2.y && v2.y == row) {
+    left_edge = findLeftEdge(v1, v2);
+    right_edge = findRightEdge(v1, v2);
+  } else if(v1.y == v3.y && v3.y == row) {
+    left_edge = findLeftEdge(v1, v3);
+    right_edge = findRightEdge(v1, v3);
+  } else if(v2.y == v3.y && v3.y == row) {
+    left_edge = findLeftEdge(v2, v3);
+    right_edge = findRightEdge(v2, v3);
+  } else {
+    left_edge = findIntersection(vertext_pair[0][0], vertext_pair[0][1], row);
+    right_edge = findIntersection(vertext_pair[1][0], vertext_pair[1][1], row);
+  }
 
-  alpha = (row - vl2.y) / (vl1.y - vl2.y);
-  beta = (row - vr2.y) / (vr1.y - vr2.y);
-  for(i = (int)left_edge.x; i < (int)right_edge.x; i++) {
-    gamma = ((float)i - left_edge.x) / (right_edge.x - left_edge.x);
-    bc_v1 = gamma * (1 - beta); // a
-    bc_v2 = (1 - gamma) * alpha + gamma * beta; // b
-    bc_v3 = (1 - gamma) * (1 - alpha);  // c
-    
-    final_r = (bc_v1 * vr2.r + bc_v2 * vr1.r + bc_v3 * vl2.r) / 254;
-    final_g = (bc_v1 * vr2.g + bc_v2 * vr1.g + bc_v3 * vl2.g)  / 254;
-    final_b = (bc_v1 * vr2.b + bc_v2 * vr1.b + bc_v3 * vl2.b) /  254; 
+  if(left_edge.x > right_edge.x) {
+    temp = left_edge;
+    left_edge = right_edge;
+    right_edge = temp;
+  }
 
-    final_s = (bc_v1 * vr2.s + bc_v2 * vr1.s + bc_v3 * vl2.s);
-    final_t = (bc_v1 * vr2.t + bc_v2 * vr1.t + bc_v3 * vl2.t);
+  left_edge.x = ceil(left_edge.x);
+  right_edge.x = floor(right_edge.x);
+
+
+  for(i = (int)left_edge.x; i <= (int)right_edge.x; i++) {
+    if(right_edge.x == left_edge.x) {
+      gamma = 0;
+    } else {
+      gamma = ((float)i - left_edge.x) / (right_edge.x - left_edge.x);
+    }
 
     // method 2, just interpolate through left_edge to right_edge
-    final_r = ((1-gamma) * left_edge.r + gamma * right_edge.r) / 254;
-    final_g = ((1-gamma) * left_edge.g + gamma * right_edge.g) / 254;
-    final_b = ((1-gamma) * left_edge.b + gamma * right_edge.b) / 254;
+    final_r = ((1-gamma) * left_edge.r + gamma * right_edge.r) / 255;
+    final_g = ((1-gamma) * left_edge.g + gamma * right_edge.g) / 255;
+    final_b = ((1-gamma) * left_edge.b + gamma * right_edge.b) / 255;
     final_s = ((1-gamma) * left_edge.s + gamma * right_edge.s);
     final_t = ((1-gamma) * left_edge.t + gamma * right_edge.t);
 
@@ -298,9 +225,10 @@ void DrawTriangle(vertex v1, vertex v2, vertex v3) {
     fillRow(v1, v2, v3, (float)i);
   }
 
-  colorPixel(v1.x, v1.y, 254, 254, 254);
-  colorPixel(v2.x, v2.y, 254, 254, 254);
-  colorPixel(v3.x, v3.y, 254, 254, 254);
+  // color the vertices white
+  colorPixel(v1.x, v1.y, 255, 255, 255);
+  colorPixel(v2.x, v2.y, 255, 255, 255);
+  colorPixel(v3.x, v3.y, 255, 255, 255);
 }
 
 /* Call your triangle drawing program from here; this is the 
