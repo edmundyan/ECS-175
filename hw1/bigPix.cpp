@@ -9,6 +9,8 @@
 #include <GL/glut.h>
 #include "lowlevel.h"        /* faux framebuffer definitions */
 #include "readBMP.h"
+#include <math.h>
+#include <string.h>
 #include <algorithm>
 #include <vector>
 using namespace std;
@@ -17,8 +19,8 @@ using namespace std;
 void readInput(void);
 
 /* dimensions - each pixel is 10x10, and the window is 50x50 pixels */
-static int pixelSize= 1;
-static int numberOfPixels = 350;
+static int pixelSize= 5;
+static int numberOfPixels = 50;
 
 // GLOBALS //
 struct vertex {
@@ -31,16 +33,11 @@ struct vertex {
   float t;
 } ;
 
-struct triangle {
-  vertex v[3];
-} ;
-
 int num_vertices = 0;
 vector<vertex> verts; 
 Image texture_img;
 bool texture_mapping = 0;
 
-int flip_color = 0;
 
 vertex findLeftEdge(vertex v1, vertex v2) {
   return v1.x < v2.x ? v1 : v2;
@@ -51,67 +48,20 @@ vertex findRightEdge(vertex v1, vertex v2) {
 }
 
 vertex findIntersection(vertex v1, vertex v2, float row) {
-  vertex right_edge;
+  vertex v;
 
   float p;  // proportion
   p = (row - v2.y) / (v1.y - v2.y);
 
-  right_edge.y = row;
-  right_edge.x = (1-p) * v2.x + p * v1.x;
-  right_edge.r = (1-p) * v2.r + p * v1.r;
-  right_edge.g = (1-p) * v2.g + p * v1.g;
-  right_edge.b = (1-p) * v2.b + p * v1.b;
-  right_edge.s = (1-p) * v2.s + p * v1.s;
-  right_edge.t = (1-p) * v2.t + p * v1.t;
-
-  //printf("~right, row%f = %f\n", row, col);
-  return right_edge;
-}
-
-void sortByY(vertex *arr) {
-  vertex temp;
-  // sorting 3 vertex objects by Y value
-  if(arr[1].y < arr[0].y) {
-    // swap
-    temp = arr[0];
-    arr[0] = arr[1];
-    arr[1] = temp;
-  }
-  if(arr[2].y < arr[1].y) {
-    // swap
-    temp = arr[1];
-    arr[1] = arr[2];
-    arr[2] = temp;
-  }
-  if(arr[1].y < arr[0].y) {
-    // swap
-    temp = arr[0];
-    arr[0] = arr[1];
-    arr[1] = temp;
-  }
-}
-
-void sortByX(vertex *arr) {
-  vertex temp;
-  // sorting 3 vertex objects by Y value
-  if(arr[1].x < arr[0].x) {
-    // swap
-    temp = arr[0];
-    arr[0] = arr[1];
-    arr[1] = temp;
-  }
-  if(arr[2].x < arr[1].x) {
-    // swap
-    temp = arr[1];
-    arr[1] = arr[2];
-    arr[2] = temp;
-  }
-  if(arr[1].x < arr[0].x) {
-    // swap
-    temp = arr[0];
-    arr[0] = arr[1];
-    arr[1] = temp;
-  }
+  v.y = row;
+  v.x = (1-p) * v2.x + p * v1.x;
+  v.r = (1-p) * v2.r + p * v1.r;
+  v.g = (1-p) * v2.g + p * v1.g;
+  v.b = (1-p) * v2.b + p * v1.b;
+  v.s = (1-p) * v2.s + p * v1.s;
+  v.t = (1-p) * v2.t + p * v1.t;
+  
+  return v;
 }
 
 void fillRow(vertex v1, vertex v2, vertex v3, float row) {
@@ -130,8 +80,6 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
   float bc_v1, bc_v2, bc_v3;  // the barycentric coordintes for point r
   float final_r, final_g, final_b, final_s, final_t;
 
-
-  
   if((min(v1.y, v2.y) < row) && (row < max(v1.y, v2.y))) {
     vertext_pair[vertex_pair_count][0]  = v1;
     vertext_pair[vertex_pair_count][1]  = v2;
@@ -154,16 +102,14 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
     vertex_pair_combo += 4;
   }
   if(vertex_pair_count == 1) {
-    // same line, take ONE point from vertext_pair[0] and the 3rd point not being used
+    // same line, take ONE point from vertext_pair[0] and the 3rd point not 
+    // being used
     vertext_pair[1][0] = vertext_pair[0][0];
     vertext_pair[1][1] = third_vertex;
     vertex_pair_count++;
-  } else if(vertex_pair_count == 0) {
-    // dummy?
-    vertext_pair[0][0] = v1;
-    vertext_pair[0][0] = v1;
   }
 
+  // testing for horizonal lines
   if(v1.y == v2.y && v2.y == row) {
     left_edge = findLeftEdge(v1, v2);
     right_edge = findRightEdge(v1, v2);
@@ -173,6 +119,16 @@ void fillRow(vertex v1, vertex v2, vertex v3, float row) {
   } else if(v2.y == v3.y && v3.y == row) {
     left_edge = findLeftEdge(v2, v3);
     right_edge = findRightEdge(v2, v3);
+  } else if(vertex_pair_count == 0 && v1.y == row) {  // test for top/bot 
+                                                      // vertices
+    left_edge = v1;
+    right_edge = v1;
+  } else if (vertex_pair_count == 0 && v2.y == row) {
+    left_edge = v2;
+    right_edge = v2;
+  } else if (vertex_pair_count == 0 && v3.y == row) {
+    left_edge = v3;
+    right_edge = v3;
   } else {
     left_edge = findIntersection(vertext_pair[0][0], vertext_pair[0][1], row);
     right_edge = findIntersection(vertext_pair[1][0], vertext_pair[1][1], row);
@@ -236,33 +192,13 @@ void DrawTriangle(vertex v1, vertex v2, vertex v3) {
    coloring pixels. */
 void drawContents(void) {
   
-  /* The colorPixel function: int x, int y, GLubyte r, GLubyte g, GLubyte b
-     x,y = pixel address
-     r,g,b = pixel color
-  */
   readInput();
   int i, j;
   float final_r, final_g, final_b;
   
-  /*
-  // COPY THE PICTURE
-  for(i = 0; i < numberOfPixels-10; i++) {
-    for(j = 0; j < numberOfPixels-10; j++) {
-      // change the rgb
-      final_r = (unsigned char)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3] / 255.0;
-      final_g = (unsigned char)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 1] / 255.0;
-      final_b = (unsigned char)texture_img.data[(i * (texture_img.sizeX+1) + j) * 3 + 2] / 255.0;
-      colorPixel(j, i, final_r, final_g, final_b);
-    }
-  }
-  return;
-  */
-  
   for(i = 0; i < num_vertices / 3;i++) {
-
     // send the three vertices to DrawTriangle()
     DrawTriangle(verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2]);
-    flip_color = 1 - flip_color;
   }
 }
 
@@ -305,6 +241,7 @@ void readInput(void) {
         v.x = x;
         v.y = y;
       } else {
+      	printf("'%s' = ", line);
         printf("No format found for this line\n");
       }
       verts.insert(verts.begin() + num_vertices, v);

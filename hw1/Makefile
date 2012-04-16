@@ -5,8 +5,8 @@ LDFLAGS = -L/usr/X11R6/lib -lglut -lGLU -lGL -lX11 -lGLEW
 
 RM = /bin/rm -f 
 
-bigPix:  bigPix.o lowlevel.o shader_utils.o
-	$(CC) $(CFLAGS) -o bigPix bigPix.o shader_utils.o lowlevel.o $(LDFLAGS) 
+bigPix:  bigPix.o lowlevel.o shader_utils.o readBMP.o
+	$(CC) $(CFLAGS) -o bigPix bigPix.o shader_utils.o lowlevel.o readBMP.o $(LDFLAGS) 
 %.o : %.cpp
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 clean: 
