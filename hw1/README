@@ -1,0 +1,4 @@
+Edmund Yan
+99604912
+
+I've implemented both part2 and part3.  The executable is the same, and you simply need to send in different input files and it should work!  Note, you'll have to modify bigPix.cpp and recompile if you want better resolution.

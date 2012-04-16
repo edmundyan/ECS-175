@@ -1,8 +1,12 @@
+// Edmund Yan
+// 996049162
+// ECS 175 S12 - Amenta
+
 /*
  *  bigPix.cpp
  *  Draws a 50x50 array of big pixels, for practice in low-level graphics
  */
-
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include "shader_utils.h"
