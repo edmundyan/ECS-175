@@ -1,3 +1,7 @@
+// Edmund Yan
+// 996049162
+// ECS 175 S12 - Amenta
+
 /**
  * This file is in the public domain.
  * Contributors: Sylvain Beucler
