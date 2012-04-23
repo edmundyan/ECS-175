@@ -21,13 +21,13 @@ GLint uniform_matrix;  // pointer to uniform variable
 // every vertex is position (2 floats), followed by color (3 floats)
 GLfloat leaf_vertices[] = {
   0.0,0.0,   0.5,0.9,0.3,
-  0.25,0.19, 0.1 ,0.5,0.1,
-  0.30,0.48, 0.4,0.8,0.3,
-  0.27,0.62, 0.1,0.5,0.1,
-  0.0,1.0,   0.5,0.9,0.3,
-  -0.27,0.62,  0.1,0.5,0.3,
-  -0.30,0.48,  0.4,0.8,0.3,
-  -0.25,0.19,  0.1,0.5,0.1
+  0.15,0.09, 0.1 ,0.5,0.1,
+  0.20,0.38, 0.4,0.8,0.3,
+  0.17,0.42, 0.1,0.5,0.1,
+  0.0,0.7,   0.5,0.9,0.3,
+  -0.17,0.42,  0.1,0.5,0.3,
+  -0.20,0.38,  0.4,0.8,0.3,
+  -0.15,0.09,  0.1,0.5,0.1
   };
 
 GLubyte leaf_indicies[] = {
@@ -61,13 +61,20 @@ GLfloat TurnLeft[] =
 GLfloat Nothing[] = 
   {1.0, 0.0, 0.0, 
    0.0, 1.0, 0.0,
-   0.0,  0.0, 1.0};
+   0.0,  -1.0, 1.0};
 
 GLfloat TranslateStem[] = 
 {
   1.0, 0.0, 0.0,
   0.0, 1.0, 0.0,
   0.0, stem_height, 1
+};
+
+GLfloat ScaleSmall[] = 
+{
+  0.2, 0.0, 0.0,
+  0.0, 0.2, 0.0,
+  0.0, 0.0, 1
 };
 
 // Set up the shaders, compile and link them, get pointers to 
@@ -181,7 +188,9 @@ void drawLeaf(GLfloat t[]) {
 
 }
 
-void drawStem(GLfloat t[]) {
+GLfloat* drawStem(int i, GLfloat t[]) {
+  GLfloat cos_theta, sin_theta;
+
   // t will be a transformation from the origin 0,0 to the current location.
   // Send the program to the GPU
 
@@ -224,9 +233,54 @@ void drawStem(GLfloat t[]) {
   glDisableVertexAttribArray(attribute_coord2d);
   glDisableVertexAttribArray(attribute_color);
 
+  cos_theta = t[0];
+  sin_theta = t[1];
+  t = matrix_translate(t, -stem_height * sin_theta, stem_height * cos_theta);
 
+  if(i > 0) {
+      t = drawStem(i-1, t);
+  }
+  return t;
 }
 
+GLfloat* matrix_translate(GLfloat t[], GLfloat x, GLfloat y) {
+  GLfloat *ret = (GLfloat*) malloc(9 * sizeof(GLfloat));
+  GLfloat trans[] = 
+  {
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    x, y, 1
+  };
+  matrix_multiply3_3(t, trans, ret);
+  //TODO free(t)
+  return ret;
+}
+
+GLfloat* matrix_rotate(GLfloat t[], GLfloat rad, bool inPlace) {
+  // rotate counter clockwise
+  GLfloat *ret = (GLfloat*) malloc(9 * sizeof(GLfloat));
+
+  GLfloat x, y;
+  x = t[6];
+  y = t[7];
+  
+  // move to origin
+  t = matrix_translate(t, -x, -y);
+
+  // rotate
+  GLfloat trans[] = 
+  {
+    cos(rad), sin(rad), 0.0, 
+    -sin(rad), cos(rad), 0.0,
+    0.0,  0.0, 1.0
+  };
+  matrix_multiply3_3(t, trans, ret);
+
+  // move back into original position
+  ret = matrix_translate(ret, x, y);
+  //TODO free(t)
+  return ret;
+}
 
 void matrix_multiply3_3(GLfloat *a, GLfloat *b, GLfloat *c)
 {
@@ -242,27 +296,6 @@ void matrix_multiply3_3(GLfloat *a, GLfloat *b, GLfloat *c)
 		for (j = 0; j < 3; j++)
 			for (k = 0; k < 3; k++)
 				c[j * 3 + i] += a[j * 3 + k] * b[k * 3 + i];
-
-for(int i = 0; i < 9; i ++) {
-    printf("amm[%d] - %f\n", i, a[i]);
-  }
-for(int i = 0; i < 9; i ++) {
-    printf("bmm[%d] - %f\n", i, b[i]);
-  }
-  for(int i = 0; i < 9; i ++) {
-    printf("cmm[%d] - %f\n", i, c[i]);
-  }
-}
-
-GLfloat* moveOneStem(GLfloat t[]) {
-
-  GLfloat *ret = (GLfloat*) malloc(9 * sizeof(GLfloat));
-  matrix_multiply3_3(t, TranslateStem, ret);
-  for(int i = 0; i < 9; i ++) {
-    printf("3[%d] - %f\n", i, ret[i]);
-  }
-  
-  return ret;
 }
 
 // Draw the leaf
@@ -272,30 +305,39 @@ void drawPlant(int i, GLfloat t[]) {
     t = Nothing;
   }
 
-
-  /*
+  GLfloat temp[9];
+  GLfloat *pivot;
+  
   if(i == 0) {
     // BASE CASE
     drawLeaf(t);
+    printf("LEAF\n");
   } else {
-    drawStem(t);
-    t = moveOneStem(t);
-    // RECURSE
-  }*/
-  
+    printf("STEM\n");
+    t = drawStem(i, t);
 
+    pivot = t;
+
+    // recurse LEFT branch
+    printf("rotate left\n");
+    t = matrix_rotate(t, M_PI/6, true);
+    drawPlant(i - 1, t);
+    t = pivot;
+
+    // recurse RIGHT branch
+    printf("rotate right\n");
+    t = matrix_rotate(t, -M_PI/6, true);
+    drawPlant(i - 1, t);
+  } 
+  
+  /*
   //drawLeaf(Nothing);
   drawStem(t);
-  t = moveOneStem(t);
-
-for(int i = 0; i < 9; i ++) {
-    printf("t[%d] - %f\n", i, t[i]);
-  }
+  t = matrix_translate(t, 0, stem_height);
   drawLeaf(t);
-  
-
+  t = matrix_rotate(t, M_PI/6);
+  drawLeaf(t);*/
 }
-
 
 void free_resources()
 {
