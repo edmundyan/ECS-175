@@ -65,7 +65,7 @@ void display() {
 
   
   /* put plant drawing code here */
-  drawPlant(2, NULL);
+  drawPlant(3, NULL);
   /* end drawing code */
 
   // Swap the screen (forces drawing, and used for animation)

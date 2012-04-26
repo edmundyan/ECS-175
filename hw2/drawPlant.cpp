@@ -17,6 +17,10 @@ GLint attribute_coord2d = 0;
 GLint attribute_color = 1;
 GLint uniform_matrix;  // pointer to uniform variable
 
+struct Vertex {
+  float x;
+  float y;
+} ;
 
 // every vertex is position (2 floats), followed by color (3 floats)
 GLfloat leaf_vertices[] = {
@@ -28,7 +32,7 @@ GLfloat leaf_vertices[] = {
   -0.17,0.42,  0.1,0.5,0.3,
   -0.20,0.38,  0.4,0.8,0.3,
   -0.15,0.09,  0.1,0.5,0.1
-  };
+};
 
 GLubyte leaf_indicies[] = {
   0, 1, 2, 
@@ -39,13 +43,16 @@ GLubyte leaf_indicies[] = {
   0, 6, 7
 };
 
-GLfloat stem_height = 0.25;
-GLfloat stem_width = stem_height / 5.0;
-GLfloat stem_vertices[] = {
-  -stem_width/2.0, 0.0,   .87, .72, .53,
-  stem_width/2, 0.0,   .87, .72, .53,
-  stem_width/2.0, stem_height,   .87, .72, .53,
-  -stem_width/2.0, stem_height,   .87, .72, .53
+GLfloat leaf_bezier_root[] = {
+  0.0,0.0,   0.5,0.9,0.3,
+  0.15,0.35, 0.4,0.8,0.3,
+  0.0,0.40, 0.5,0.9,0.3,
+  -0.15,0.35, 0.4,0.8,0.3,
+};
+
+GLubyte leaf_indicies_bezier_root[] = {
+  0, 1, 2, 
+  0, 2, 3,
 };
 
 GLubyte stem_indicies[] = {
@@ -59,22 +66,10 @@ GLfloat TurnLeft[] =
    0.0,  0.0, 1.0};
 
 GLfloat Nothing[] = 
-  {1.0, 0.0, 0.0, 
-   0.0, 1.0, 0.0,
-   0.0,  -1.0, 1.0};
-
-GLfloat TranslateStem[] = 
 {
-  1.0, 0.0, 0.0,
+  1.0, 0.0, 0.0, 
   0.0, 1.0, 0.0,
-  0.0, stem_height, 1
-};
-
-GLfloat ScaleSmall[] = 
-{
-  0.2, 0.0, 0.0,
-  0.0, 0.2, 0.0,
-  0.0, 0.0, 1
+  0.0,  -1.0, 1.0
 };
 
 // Set up the shaders, compile and link them, get pointers to 
@@ -141,6 +136,163 @@ int init_resources()
   return 1;
 }
 
+GLfloat* makeStemObj(GLfloat stem_height, GLfloat stem_width) {
+  /*GLfloat* stem_vertices = new GLfloat[15] {
+    -stem_width/2.0, 0.0,   .87, .72, .53,
+    stem_width/2, 0.0,   .87, .72, .53,
+    stem_width/2.0, stem_height,   .87, .72, .53,
+    -stem_width/2.0, stem_height,   .87, .72, .53
+  };*/
+  
+  GLfloat stem_vertices[] = {
+    -stem_width/2.0, 0.0,   .87, .72, .53,
+    stem_width/2, 0.0,   .87, .72, .53,
+    stem_width/2.0, stem_height,   .87, .72, .53,
+    -stem_width/2.0, stem_height,   .87, .72, .53
+  };
+
+  GLfloat* stem_vertices_dyn = new GLfloat[20];
+
+  memcpy(stem_vertices_dyn, stem_vertices, 20 * sizeof(GLfloat));
+
+
+  /*
+  stem_vertices[0] = -stem_width/2.0;
+  stem_vertices[1] = -stem_width/2.0;
+  stem_vertices[2] = -stem_width/2.0;
+  stem_vertices[3] = -stem_width/2.0;
+  stem_vertices[4] = -stem_width/2.0;
+  stem_vertices[5] = -stem_width/2.0;
+  stem_vertices[6] = -stem_width/2.0;
+  stem_vertices[7] = -stem_width/2.0;
+  stem_vertices[8] = -stem_width/2.0;
+  
+  {
+    -stem_width/2.0, 0.0,   .87, .72, .53,
+    stem_width/2, 0.0,   .87, .72, .53,
+    stem_width/2.0, stem_height,   .87, .72, .53,
+    -stem_width/2.0, stem_height,   .87, .72, .53
+  };*/
+
+  return stem_vertices_dyn;
+}
+
+void drawLeafBezier(GLfloat t[]) {
+  // 1. generate leaf_vertices and leaf_indices using bezier curves
+  
+  int n = 20; // number of segments
+  Vertex a, b, c, r;
+
+  a.x = leaf_bezier_root[0];  // 0
+  a.y = leaf_bezier_root[1];
+  b.x = leaf_bezier_root[5];  // 1
+  b.y = leaf_bezier_root[6];
+  c.x = leaf_bezier_root[10]; // 2
+  c.y = leaf_bezier_root[11];
+
+  
+  GLfloat *leaf_bezier = new GLfloat[(n+1) * 5 * 2];
+  GLubyte *leaf_indicies_bezier =new GLubyte[(n) * 3 * 2];
+
+  int i;
+  for(i = 0; i < n; i++) {
+    //double percent = 0.0; percent <= 1.0; percent += 1.0/n
+
+    double percent = (double)i/n;
+    r.x = (1-percent*percent)*a.x + 2*percent*(1-percent)*b.x + percent*percent*c.x;
+    r.y = (1-percent*percent)*a.y + 2*percent*(1-percent)*b.y + percent*percent*c.y;
+
+    leaf_bezier[i * 5] = r.x;
+    leaf_bezier[i * 5 + 1] = r.y;
+    printf("%d:(%f, %f) pers:%f\n", i, r.x, r.y, percent);
+    // rgb
+    leaf_bezier[i * 5 + 2] = 0.5;
+    leaf_bezier[i * 5 + 3] = 0.8;
+    leaf_bezier[i * 5 + 4] = 0.3;
+  } 
+  
+  // the other side of the leaf
+  a.x = leaf_bezier_root[0];  // 0
+  a.y = leaf_bezier_root[1];
+  b.x = leaf_bezier_root[15];  // 2
+  b.y = leaf_bezier_root[16];
+  c.x = leaf_bezier_root[10]; // 3
+  c.y = leaf_bezier_root[11];
+
+  //for(double percent = 1.0 - 1.0/n; percent > 0.0; percent -= 1.0/n) {
+  for(i = i; i < 2*n; i++) {
+    double percent = 1 - (double)(i - n)/(n);
+    r.x = (1-percent*percent)*a.x + 2*percent*(1-percent)*b.x + percent*percent*c.x;
+    r.y = (1-percent*percent)*a.y + 2*percent*(1-percent)*b.y + percent*percent*c.y;
+
+    leaf_bezier[i * 5] = r.x;
+    leaf_bezier[i * 5 + 1] = r.y;
+    printf("%d:(%f, %f) pers:%f\n", i, r.x, r.y, percent);
+    // rgb
+    leaf_bezier[i * 5 + 2] = 0.5;
+    leaf_bezier[i * 5 + 3] = 0.8;
+    leaf_bezier[i * 5 + 4] = 0.3;
+  }
+
+  printf("indicies:\n");
+  for(int i = 0; i < (n-1) * 2; i++) {
+    leaf_indicies_bezier[i * 3] = 0;
+    leaf_indicies_bezier[i * 3 + 1] = i + 1;
+    leaf_indicies_bezier[i * 3 + 2] = i + 2;
+    printf("(%d, %d, %d)\n", 0, i+1, i+2);
+  }
+
+
+
+  // t will be a transformation from the origin 0,0 to the current location.
+  // Send the program to the GPU
+
+  glUseProgram(program);
+
+  // Now hook up input data to program.
+
+  // Two attributes for the vertex, position and color.
+  // Let OpenGL know we'll use both of them. 
+  glEnableVertexAttribArray(attribute_coord2d);
+  glEnableVertexAttribArray(attribute_color);
+
+  // Describe the position attribute and where the data is in the array
+  glVertexAttribPointer(
+    attribute_coord2d, // attribute ID
+    2,                 // number of elements per vertex, here (x,y)
+    GL_FLOAT,          // the type of each element
+    GL_FALSE,          // take our values as-is, don't normalize
+    5*sizeof(float),  // stride between one position and the next
+    leaf_bezier  // pointer to first position in the C array
+  );
+
+  // Describe the position attribute and where the data is in the array
+  glVertexAttribPointer(
+    attribute_color, // attribute ID
+    3,                 // number of elements per vertex, here (r,g,b)
+    GL_FLOAT,          // the type of each element
+    GL_FALSE,          // take our values as-is, don't normalize
+    5*sizeof(float),  // stride between one position and the next
+    leaf_bezier+2    // pointer to first position index of a color in the C array
+  );
+
+
+  // give the matrix a value
+  glUniformMatrix3fv(uniform_matrix, 1, GL_FALSE, t);
+
+  // Send the triangle vertices to the GPU  - actually draw! 
+  // NOTE: It's not exactly n*3*2 b/c the "right" side has (n-1)*3 triangles, whereas the "left side" has n*3 triangles b/c it repeat the middle twice
+  glDrawElements(GL_TRIANGLES, (n-1)*3 * 2, GL_UNSIGNED_BYTE, leaf_indicies_bezier);
+
+  // Done with the attributes
+  glDisableVertexAttribArray(attribute_coord2d);
+  glDisableVertexAttribArray(attribute_color);
+
+  free(leaf_indicies_bezier);
+  free(leaf_bezier);
+}
+
+
 // draw a leaf at point T
 void drawLeaf(GLfloat t[]) {
   // t will be a transformation from the origin 0,0 to the current location.
@@ -189,8 +341,6 @@ void drawLeaf(GLfloat t[]) {
 }
 
 GLfloat* drawStem(int i, GLfloat t[]) {
-  GLfloat cos_theta, sin_theta;
-
   // t will be a transformation from the origin 0,0 to the current location.
   // Send the program to the GPU
 
@@ -202,6 +352,10 @@ GLfloat* drawStem(int i, GLfloat t[]) {
   // Let OpenGL know we'll use both of them. 
   glEnableVertexAttribArray(attribute_coord2d);
   glEnableVertexAttribArray(attribute_color);
+
+  GLfloat stem_height = 0.25 * i;
+  GLfloat stem_width = 0.25 / 5.0 * (1);
+  GLfloat *stem_vertices = makeStemObj(stem_height, stem_width);
 
   // Describe the position attribute and where the data is in the array
   glVertexAttribPointer(
@@ -233,12 +387,13 @@ GLfloat* drawStem(int i, GLfloat t[]) {
   glDisableVertexAttribArray(attribute_coord2d);
   glDisableVertexAttribArray(attribute_color);
 
+  GLfloat cos_theta, sin_theta;
   cos_theta = t[0];
   sin_theta = t[1];
   t = matrix_translate(t, -stem_height * sin_theta, stem_height * cos_theta);
 
   if(i > 0) {
-      t = drawStem(i-1, t);
+      //t = drawStem(i-1, t);
   }
   return t;
 }
@@ -310,7 +465,8 @@ void drawPlant(int i, GLfloat t[]) {
   
   if(i == 0) {
     // BASE CASE
-    drawLeaf(t);
+    //drawLeaf(t);
+    drawLeafBezier(t);
     printf("LEAF\n");
   } else {
     printf("STEM\n");
