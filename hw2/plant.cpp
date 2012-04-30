@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include <GL/glew.h>
 #include <GL/glut.h>
 #include "shader_utils.h"
@@ -64,8 +65,9 @@ void display() {
   glClear(GL_COLOR_BUFFER_BIT);
 
   
+  srand(time(NULL));
   /* put plant drawing code here */
-  drawPlant(3, NULL);
+  drawPlant(4, NULL);
   /* end drawing code */
 
   // Swap the screen (forces drawing, and used for animation)

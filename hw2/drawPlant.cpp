@@ -72,6 +72,13 @@ GLfloat Nothing[] =
   0.0,  -1.0, 1.0
 };
 
+GLfloat ScaleDown[] = 
+{
+  0.75, 0.0, 0.0, 
+  0.0, 0.75, 0.0,
+  0.0,  0.0, 1.0
+};
+
 // Set up the shaders, compile and link them, get pointers to 
 // where the shader variables are in GPU memory. 
 int init_resources()
@@ -204,13 +211,17 @@ void drawLeafBezier(GLfloat t[]) {
 
     leaf_bezier[i * 5] = r.x;
     leaf_bezier[i * 5 + 1] = r.y;
-    printf("%d:(%f, %f) pers:%f\n", i, r.x, r.y, percent);
+    // printf("%d:(%f, %f) pers:%f\n", i, r.x, r.y, percent);
     // rgb
     leaf_bezier[i * 5 + 2] = 0.5;
     leaf_bezier[i * 5 + 3] = 0.8;
     leaf_bezier[i * 5 + 4] = 0.3;
   } 
   
+
+
+  // LEFT SIDE
+
   // the other side of the leaf
   a.x = leaf_bezier_root[0];  // 0
   a.y = leaf_bezier_root[1];
@@ -219,7 +230,7 @@ void drawLeafBezier(GLfloat t[]) {
   c.x = leaf_bezier_root[10]; // 3
   c.y = leaf_bezier_root[11];
 
-  //for(double percent = 1.0 - 1.0/n; percent > 0.0; percent -= 1.0/n) {
+  
   for(i = i; i < 2*n; i++) {
     double percent = 1 - (double)(i - n)/(n);
     r.x = (1-percent*percent)*a.x + 2*percent*(1-percent)*b.x + percent*percent*c.x;
@@ -227,19 +238,19 @@ void drawLeafBezier(GLfloat t[]) {
 
     leaf_bezier[i * 5] = r.x;
     leaf_bezier[i * 5 + 1] = r.y;
-    printf("%d:(%f, %f) pers:%f\n", i, r.x, r.y, percent);
+    //printf("%d:(%f, %f) pers:%f\n", i, r.x, r.y, percent);
     // rgb
     leaf_bezier[i * 5 + 2] = 0.5;
-    leaf_bezier[i * 5 + 3] = 0.8;
+    //leaf_bezier[i * 5 + 3] = 0.8;
+    leaf_bezier[i * 5 + 3] = percent;
     leaf_bezier[i * 5 + 4] = 0.3;
   }
 
-  printf("indicies:\n");
   for(int i = 0; i < (n-1) * 2; i++) {
     leaf_indicies_bezier[i * 3] = 0;
     leaf_indicies_bezier[i * 3 + 1] = i + 1;
     leaf_indicies_bezier[i * 3 + 2] = i + 2;
-    printf("(%d, %d, %d)\n", 0, i+1, i+2);
+    //printf("(%d, %d, %d)\n", 0, i+1, i+2);
   }
 
 
@@ -352,9 +363,13 @@ GLfloat* drawStem(int i, GLfloat t[]) {
   // Let OpenGL know we'll use both of them. 
   glEnableVertexAttribArray(attribute_coord2d);
   glEnableVertexAttribArray(attribute_color);
-
-  GLfloat stem_height = 0.25 * i;
-  GLfloat stem_width = 0.25 / 5.0 * (1);
+  
+  
+  GLfloat stem_height_base = 0.15;
+  double r = (double)rand() / (double)RAND_MAX;
+  GLfloat stem_height = (stem_height_base * r + 0.15) * i;  // (0.15 - 0.30)
+  printf("%f\n", stem_height);
+  GLfloat stem_width = stem_height_base / 5.0 * (1);
   GLfloat *stem_vertices = makeStemObj(stem_height, stem_width);
 
   // Describe the position attribute and where the data is in the array
@@ -455,34 +470,43 @@ void matrix_multiply3_3(GLfloat *a, GLfloat *b, GLfloat *c)
 
 // Draw the leaf
 void drawPlant(int i, GLfloat t[]) {
-  
+
+  GLfloat temp[9];
+  GLfloat *pivot;
+  double rotate_angle;
+  double r;
   if(t == NULL) {
     t = Nothing;
   }
 
-  GLfloat temp[9];
-  GLfloat *pivot;
-  
-  if(i == 0) {
+
+  if(i <= 0) {
     // BASE CASE
     //drawLeaf(t);
     drawLeafBezier(t);
-    printf("LEAF\n");
+    
   } else {
-    printf("STEM\n");
-    t = drawStem(i, t);
+    matrix_multiply3_3(ScaleDown, t , temp);
+    t = temp;
 
+    
+    t = drawStem(i, t);
     pivot = t;
 
+    drawPlant(i - 1, t);
+
     // recurse LEFT branch
-    printf("rotate left\n");
-    t = matrix_rotate(t, M_PI/6, true);
+    // rotate between PI/8 to PI/4
+    r = (double)rand() / (double)RAND_MAX;
+    rotate_angle = (M_PI / 8) + r * M_PI / 8;
+    t = matrix_rotate(t, rotate_angle, true);
     drawPlant(i - 1, t);
     t = pivot;
 
     // recurse RIGHT branch
-    printf("rotate right\n");
-    t = matrix_rotate(t, -M_PI/6, true);
+    r = (double)rand() / (double)RAND_MAX;
+    rotate_angle = (M_PI / 8) + r * M_PI / 8;
+    t = matrix_rotate(t, -rotate_angle, true);
     drawPlant(i - 1, t);
   } 
   
