@@ -61,13 +61,17 @@ int main (int argc, char** argv) {
 void display() {
 
   // black background
-  glClearColor(0.0, 0.0, 0.0, 0.0);  
+  glClearColor(0.0, 0.0, 0.0, 0.0);
   glClear(GL_COLOR_BUFFER_BIT);
 
   
   srand(time(NULL));
   /* put plant drawing code here */
+  drawBgObjects();
   drawPlant(4, NULL);
+  drawBackground();
+  
+  
   /* end drawing code */
 
   // Swap the screen (forces drawing, and used for animation)

@@ -368,7 +368,6 @@ GLfloat* drawStem(int i, GLfloat t[]) {
   GLfloat stem_height_base = 0.15;
   double r = (double)rand() / (double)RAND_MAX;
   GLfloat stem_height = (stem_height_base * r + 0.15) * i;  // (0.15 - 0.30)
-  printf("%f\n", stem_height);
   GLfloat stem_width = stem_height_base / 5.0 * (1);
   GLfloat *stem_vertices = makeStemObj(stem_height, stem_width);
 
@@ -412,6 +411,255 @@ GLfloat* drawStem(int i, GLfloat t[]) {
   }
   return t;
 }
+
+
+void drawBgObjects() {
+  int n = 100; // number of segments
+  Vertex a, b, c, d, r;
+
+
+  GLfloat sun_vertices_root[] = {
+    -0.25, 0.0,   .87, .72, .53,
+    0.0, 0.0,   .87, .72, .53,
+    0.0, 0.5,   .87, .72, .53,
+    -0.25, 0.5,   .87, .72, .53,
+    0.25, 0.0,   .87, .72, .53,
+    0.25, 0.5,   .87, .72, .53
+  };
+
+  GLfloat *sun_bezier = new GLfloat[(n+1) * 5  *2];
+  GLubyte *sun_indices_bezier = new GLubyte[(n) * 3 * 2];
+
+
+  
+  a.x = sun_vertices_root[5];  // p0
+  a.y = sun_vertices_root[6];
+  b.x = sun_vertices_root[0];  // p1
+  b.y = sun_vertices_root[1];
+  c.x = sun_vertices_root[15]; // p2
+  c.y = sun_vertices_root[16];
+  d.x = sun_vertices_root[10]; // p3
+  d.y = sun_vertices_root[11];
+
+  int i = 0;
+
+  
+  for(i = 0; i < n; i++) {
+    double percent = (double) i / n;
+    r.x = pow(1-percent, 3) * a.x + 3*pow(1-percent, 2)*percent*b.x + 3*(1-percent)*pow(percent,2)*c.x + pow(percent, 3)*d.x;
+    r.y = pow(1-percent, 3) * a.y + 3*pow(1-percent, 2)*percent*b.y + 3*(1-percent)*pow(percent,2)*c.y + pow(percent, 3)*d.y;
+
+    sun_bezier[i * 5] = r.x;
+    sun_bezier[i * 5 + 1] = r.y;
+
+    sun_bezier[i * 5 + 2] = 255.0/255.0;
+    sun_bezier[i * 5 + 3] = 212.0/255.0;
+    sun_bezier[i * 5 + 4] = 19.0/255.0;
+  }
+
+
+  
+  a.x = sun_vertices_root[5];  // p0
+  a.y = sun_vertices_root[6];
+  b.x = sun_vertices_root[20];  // p1
+  b.y = sun_vertices_root[21];
+  c.x = sun_vertices_root[25]; // p2
+  c.y = sun_vertices_root[26];
+  d.x = sun_vertices_root[10]; // p3
+  d.y = sun_vertices_root[11];
+
+
+
+  for(; i < n * 2; i++) {
+    double percent = 1 - ((double) (i - n) / n);
+    r.x = pow(1-percent, 3) * a.x + 3*pow(1-percent, 2)*percent*b.x + 3*(1-percent)*pow(percent,2)*c.x + pow(percent, 3)*d.x;
+    r.y = pow(1-percent, 3) * a.y + 3*pow(1-percent, 2)*percent*b.y + 3*(1-percent)*pow(percent,2)*c.y + pow(percent, 3)*d.y;
+
+    sun_bezier[i * 5] = r.x;
+    sun_bezier[i * 5 + 1] = r.y;
+
+    sun_bezier[i * 5 + 2] = 255.0/255.0;
+    sun_bezier[i * 5 + 3] = 212.0/255.0;
+    sun_bezier[i * 5 + 4] = 19.0/255.0;
+  }
+
+
+  printf("Sun:----------------\n");
+  for(int i = 0; i < n * 2; i++) {
+    printf("(%f, %f)\n", sun_bezier[i * 5], sun_bezier[i * 5 + 1]);
+  }
+
+  
+
+  for(int i = 0; i < n * 2; i++) {
+      sun_indices_bezier[i * 3] = 0;
+      sun_indices_bezier[i * 3 + 1] = i + 1;
+      sun_indices_bezier[i * 3 + 2] = i + 2;
+  }
+
+
+  // t will be a transformation from the origin 0,0 to the current location.
+  // Send the program to the GPU
+
+  glUseProgram(program);
+
+  // Now hook up input data to program.
+
+  // Two attributes for the vertex, position and color.
+  // Let OpenGL know we'll use both of them. 
+  glEnableVertexAttribArray(attribute_coord2d);
+  glEnableVertexAttribArray(attribute_color);
+  
+
+
+  // Describe the position attribute and where the data is in the array
+  glVertexAttribPointer(
+    attribute_coord2d, // attribute ID
+    2,                 // number of elements per vertex, here (x,y)
+    GL_FLOAT,          // the type of each element
+    GL_FALSE,          // take our values as-is, don't normalize
+    5*sizeof(float),  // stride between one position and the next
+    sun_bezier  // pointer to first position in the C array
+  );
+
+  // Describe the position attribute and where the data is in the array
+  glVertexAttribPointer(
+    attribute_color, // attribute ID
+    3,                 // number of elements per vertex, here (r,g,b)
+    GL_FLOAT,          // the type of each element
+    GL_FALSE,          // take our values as-is, don't normalize
+    5*sizeof(float),  // stride between one position and the next
+    sun_bezier+2    // pointer to first position index of a color in the C array
+  );
+
+
+  // give the matrix a value
+  GLfloat *temp;
+  temp = matrix_translate(Nothing, -0.5, 1.5);
+  glUniformMatrix3fv(uniform_matrix, 1, GL_FALSE, temp);
+
+  glDrawElements(GL_TRIANGLES, (n-1) * 3 * 2, GL_UNSIGNED_BYTE, sun_indices_bezier);
+
+  // Done with the attributes
+  glDisableVertexAttribArray(attribute_coord2d);
+  glDisableVertexAttribArray(attribute_color);
+}
+
+
+void drawBackground() {
+  int n = 255; // number of segments
+  Vertex a, b, c, d, r;
+
+
+  // NOTE, left/right edges are beyond the [-1,1] range
+  GLfloat floor_vertices_root[] = {
+    -1.5, 0.0,   .87, .72, .53,
+    -0.5, 0.7,   .87, .72, .53,
+    0.5, 0.0,   .87, .72, .53,
+    1.5, 0.3,   .87, .72, .53
+  };
+
+  GLfloat *floor_bezier = new GLfloat[(n+1) * 5];
+  GLubyte *floor_indices_bezier = new GLubyte[(n) * 3];
+
+
+  // the other side of the leaf
+  a.x = floor_vertices_root[0];  // p0
+  a.y = floor_vertices_root[1];
+  b.x = floor_vertices_root[5];  // p3
+  b.y = floor_vertices_root[6];
+  c.x = floor_vertices_root[10]; // p2
+  c.y = floor_vertices_root[11];
+  d.x = floor_vertices_root[15]; // p1
+  d.y = floor_vertices_root[16];
+
+  int i = 0;
+
+
+  for(i = 0; i < (n ); i++) {
+    double percent = (double) i / n;
+    r.x = pow(1-percent, 3) * a.x + 3*pow(1-percent, 2)*percent*b.x + 3*(1-percent)*pow(percent,2)*c.x + pow(percent, 3)*d.x;
+    r.y = pow(1-percent, 3) * a.y + 3*pow(1-percent, 2)*percent*b.y + 3*(1-percent)*pow(percent,2)*c.y + pow(percent, 3)*d.y;
+
+    floor_bezier[i * 5] = r.x;
+    floor_bezier[i * 5 + 1] = r.y;
+
+    floor_bezier[i * 5 + 2] = 238.0/255.0;
+    floor_bezier[i * 5 + 3] = 168.0/255.0;
+    floor_bezier[i * 5 + 4] = 36.0/255.0;
+  }
+
+  // last triangle will cover the bottom-right corner.
+
+  floor_bezier[i * 5] = 1;
+  floor_bezier[i * 5 + 1] = 0;
+
+
+  floor_bezier[i * 5 + 2] = 238.0/255.0;
+  floor_bezier[i * 5 + 3] = 168.0/255.0;
+  floor_bezier[i * 5 + 4] = 36.0/255.0;
+
+
+
+  for(int i = 0; i < (n + 1); i++) {
+    printf("(%f, %f)\n", floor_bezier[i * 5], floor_bezier[i * 5 + 1]);
+  }
+
+  printf("----------------\n");
+
+  for(int i = 0; i < n; i++) {
+      floor_indices_bezier[i * 3] = 0;
+      floor_indices_bezier[i * 3 + 1] = i + 1;
+      floor_indices_bezier[i * 3 + 2] = i + 2;
+  }
+
+
+  // t will be a transformation from the origin 0,0 to the current location.
+  // Send the program to the GPU
+
+  glUseProgram(program);
+
+  // Now hook up input data to program.
+
+  // Two attributes for the vertex, position and color.
+  // Let OpenGL know we'll use both of them. 
+  glEnableVertexAttribArray(attribute_coord2d);
+  glEnableVertexAttribArray(attribute_color);
+  
+
+
+  // Describe the position attribute and where the data is in the array
+  glVertexAttribPointer(
+    attribute_coord2d, // attribute ID
+    2,                 // number of elements per vertex, here (x,y)
+    GL_FLOAT,          // the type of each element
+    GL_FALSE,          // take our values as-is, don't normalize
+    5*sizeof(float),  // stride between one position and the next
+    floor_bezier  // pointer to first position in the C array
+  );
+
+  // Describe the position attribute and where the data is in the array
+  glVertexAttribPointer(
+    attribute_color, // attribute ID
+    3,                 // number of elements per vertex, here (r,g,b)
+    GL_FLOAT,          // the type of each element
+    GL_FALSE,          // take our values as-is, don't normalize
+    5*sizeof(float),  // stride between one position and the next
+    floor_bezier+2    // pointer to first position index of a color in the C array
+  );
+
+
+  // give the matrix a value
+  glUniformMatrix3fv(uniform_matrix, 1, GL_FALSE, Nothing);
+
+  glDrawElements(GL_TRIANGLES, (n-1) * 3, GL_UNSIGNED_BYTE, floor_indices_bezier);
+
+  // Done with the attributes
+  glDisableVertexAttribArray(attribute_coord2d);
+  glDisableVertexAttribArray(attribute_color);
+}
+
+
 
 GLfloat* matrix_translate(GLfloat t[], GLfloat x, GLfloat y) {
   GLfloat *ret = (GLfloat*) malloc(9 * sizeof(GLfloat));
