@@ -1,0 +1,22 @@
+Edmund Yan
+996049162
+ECS 175 - HW2
+
+For this assignemtn, I created the basic 3-branching factor tree.  It would
+recurse straight up, and also along a left and right branch.  Some interesting
+features were:
+
+Randomization:
+Both the angle of each recursion and the length of each level were randomized
+to create a more "realistic" looking tree.
+
+Bezier Curved Leaves:
+Instead of hardcoding in vertices for each leaf, I generated the leaves
+dynamicaly using a quadratic bezier curve.  I used two rectangles next to
+each other to create two half-circles to create the leaf.
+
+Background:
+There are two background objects here.  The first, the Sun, is similar to how
+the leaf was made.  Two rectangles next to each other (that form a square), 
+and two half circles that put them together.  Lastly, the "floor", as I have
+named it was used doing a cubic Bezier curve to make the S-like shape.
