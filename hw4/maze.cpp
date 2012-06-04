@@ -22,6 +22,11 @@ using namespace std;
 int W=600;  /* window width */
 int H=600;  /* window height */
 
+int x_prime;
+int y_prime;
+
+double global_x_component;
+double global_y_component;
 
 void display() {
 
@@ -45,23 +50,29 @@ void onIdle() {
 	glutPostRedisplay();
 }
 */
-
-void keyPressed (unsigned char key, int x, int y) 
+// Distance formula
+double calc_distance(double x1, double x2, double y1, double y2)
 {
-  float degrees = 5;
-	if (key == 'w') 
-		moveCamera(0.2);
-	else if (key == 's') 
-		moveCamera(-0.2);
-	else if (key == 'q') 
-		panCamera(M_PI/180 * degrees); // rotate left by degrees
-	else if (key == 'e') 
-		panCamera(-M_PI/180 * degrees); // rotate right by degrees
-	if (key == 'a') 
-		moveCameraX(0.2);
-	else if (key == 'd') 
-		moveCameraX(-0.2);
-	glutPostRedisplay();
+	return sqrt(pow((x2 - x1), 2) + pow((y2 - y1), 2));
+}
+
+
+void keyPressed (unsigned char key, int x, int y)
+{
+  float degrees = 3;
+  if (key == 'w')
+    moveCamera(0.2);
+  else if (key == 's')
+    moveCamera(-0.2);
+  else if (key == 'q')
+    panCamera(M_PI/180 * degrees); // rotate left by degrees
+  else if (key == 'e')
+    panCamera(-M_PI/180 * degrees); // rotate right by degrees
+  if (key == 'a')
+    moveCameraX(0.2);
+  else if (key == 'd')
+    moveCameraX(-0.2);
+  glutPostRedisplay();
 }
 
 void specialKeyPressed(int key, int x, int y)
@@ -103,12 +114,11 @@ int main (int argc, char** argv) {
 	}
 
 
-  
-
 	// try to set up GPU to draw; if it works, fire off GLUT
 	if (init_resources()) {
 		// set display callback function
 		glutDisplayFunc(display);
+
 		// set key press callback function
 		glutKeyboardFunc(keyPressed);
 		glutSpecialFunc(specialKeyPressed);
