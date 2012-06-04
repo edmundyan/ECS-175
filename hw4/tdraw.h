@@ -5,4 +5,4 @@ int init_resources(void);
 void free_resources(void);
 
 void moveCamera(float);
-
+void panCamera(float);

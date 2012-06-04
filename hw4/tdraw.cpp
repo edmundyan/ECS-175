@@ -11,8 +11,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "shader_utils.h"
 #include "tdraw.h"
+
 #include "readObj.h"
 #include "readBMP.h"
+
+#include <iostream>
+using namespace std;
+
+#define M_PI       3.14159265358979323846
 
 GLuint program;
 GLint attribute_coord3d;
@@ -33,10 +39,10 @@ GLuint floorTextureId;
 int size = 4; // number of triangles to draw in scene
 
 GLfloat vertices[] = {
-  -4, -4, 0.0, -2.0, -2.0, 
-  4, -4, 0.0, 2.0, -2.0, 
-  4, 4, 0.0, 2.0, 2.0, 
-  -4, 4, 0.0, -2.0, 2.0,
+	-4, -4, 0.0, -2.0, -2.0, 
+	4, -4, 0.0, 2.0, -2.0, 
+	4, 4, 0.0, 2.0, 2.0, 
+	-4, 4, 0.0, -2.0, 2.0,
 
     -20, -4, -25, -10.0, -12.5,
     20, -4, -25, 10.0, -12.5,
@@ -46,10 +52,10 @@ GLfloat vertices[] = {
 
 
 GLubyte elements[] = {
-  0, 1, 2,
-  2, 3, 0,
-  4, 5, 6,
-  6, 7, 4
+    0, 1, 2,
+    2, 3, 0,
+    4, 5, 6,
+    6, 7, 4
 };
 
 // global matricies
@@ -57,33 +63,102 @@ GLubyte elements[] = {
 
 // move cube into box centered at (0,0,-5)
 glm::mat4 view  = glm::mat4(glm::vec4(1.0, 0.0, 0.0, 0.0),
-			     glm::vec4(0.0, 1.0, 0.0, 0.0),
-			     glm::vec4(0.0, 0.0, 1.0, 0.0),
-			     glm::vec4(0.0, 0.0, -5.0, 1.0));
+				  glm::vec4(0.0, 1.0, 0.0, 0.0),
+				  glm::vec4(0.0, 0.0, 1.0, 0.0),
+				  glm::vec4(0.0, 0.0, -5.0, 1.0));
 
 // projection
 // n = near plane = -3
 // f = far plane = 21*(-3) = -63
 glm::mat4 proj = glm::mat4(glm::vec4(1.0, 0.0, 0.0, 0.0),
-			   glm::vec4(0.0, 1.0, 0.0, 0.0),
-			   glm::vec4(0.0, 0.0, -22.0/(20*3), -0.33),
-			   glm::vec4(0.0, 0.0, -2.0*21/20, 0.0));
+				 glm::vec4(0.0, 1.0, 0.0, 0.0),
+				 glm::vec4(0.0, 0.0, -22.0/(20*3), -0.33),
+				 glm::vec4(0.0, 0.0, -2.0*21/20, 0.0));
+
+
+
+ 
+// Rotation Matrices
+// returns the rotation matrix depending on the axis specified
+ 
+// Rotate around the X-axis
+glm::mat4 rotate_around_X(float angle)
+{
+	glm::mat4 rotationMatrix = glm::mat4(glm::vec4(1.0, 0.0, 0.0, 0.0), 
+										 glm::vec4(0.0, cos(angle), sin(angle), 0.0),
+										 glm::vec4(0.0, -sin(angle), cos(angle), 0.0),
+										 glm::vec4(0.0, 0.0, 0.0, 1.0));					 
+	return rotationMatrix;
+}
+
+// Rotate around the Y-axis
+glm::mat4 rotate_around_Y(float angle)
+{
+	glm::mat4 rotationMatrix = glm::mat4(glm::vec4(cos(angle), 0.0, sin(angle), 0.0),
+										 glm::vec4(0.0, 1.0, 0.0, 0.0),
+										 glm::vec4(-sin(angle), 0.0, cos(angle), 0.0),
+										 glm::vec4(0.0, 0.0, 0.0, 1.0));
+	return rotationMatrix;
+}
+
+// Rotate around the Z-axis
+glm::mat4 rotate_around_Z(float angle)
+{
+	glm::mat4 rotationMatrix = glm::mat4(glm::vec4(cos(angle), sin(angle), 0.0, 0.0),
+										 glm::vec4(-sin(angle), cos(angle), 0.0, 0.0),
+										 glm::vec4(0.0, 0.0, 1.0, 0.0),
+										 glm::vec4(0.0, 0.0, 0.0, 1.0));
+	return rotationMatrix;
+}
+
+
+// Translation Matrix
+glm::mat4 translate(float x, float y, float z) 
+{
+	glm::mat4 translationMatrix = glm::mat4(glm::vec4(1.0, 0.0, 0.0, 0.0),
+											glm::vec4(0.0, 1.0, 0.0, 0.0),
+											glm::vec4(0.0, 0.0, 1.0, 0.0),
+											glm::vec4(x, y, z, 1.0));
+	return translationMatrix;
+}
+
+// Scaling Matrix
+glm::mat4 scaleMatrix(float factor) 
+{
+	glm::mat4 scaleMat = glm::mat4(glm::vec4(factor, 0.0, 0.0, 0.0),
+								   glm::vec4(0.0, factor, 0.0, 0.0),
+								   glm::vec4(0.0, 0.0, factor, 0.0),
+								   glm::vec4(0.0, 0.0, 0.0, 1.0));
+	return scaleMat;
+}
+
+
 
 
 // print out matrix by rows
-void printMat(glm::mat4  mat){
-  int i,j;
-  for (j=0; j<4; j++){
-    for (i=0; i<4; i++){
-    printf("%f ",mat[i][j]);
-  }
-  printf("\n");
- }
+void printMat(glm::mat4  mat)
+{
+	int i,j;
+	for (j=0; j<4; j++) {
+		for (i=0; i<4; i++) {
+			printf("%f ",mat[i][j]);
+		}
+		printf("\n");
+	}
 }
 
-void moveCamera(float move) {
-  cameraPosition[2] += move;
-  view[3] = cameraPosition;
+// moves the camera view forward or backwards
+void moveCamera(float move) 
+{
+	cameraPosition[2] += move;
+	view[3] = cameraPosition;
+}
+
+// pans the camera view left or right
+void panCamera(float angle)
+{
+	cameraPosition = rotate_around_Y(angle) * cameraPosition;
+	view = rotate_around_Y(angle) * view;
 }
 
 
@@ -308,6 +383,6 @@ void drawScene(void) {
 
 void free_resources()
 {
-  glDeleteProgram(program);
-  glDeleteTextures(1,&textureId);
+	glDeleteProgram(program);
+	glDeleteTextures(1,&textureId);
 }
