@@ -28,6 +28,7 @@ GLint uniform_texture;
 //GLint attribute_normal;
 
 glm::mat4 projMatrix; // Current total transform
+glm::mat4 walleTurtleMatrix; // Current total transform
 
 glm::vec4 cameraPosition = glm::vec4(0.0, 0.0, -5.0, 1.0);
 
@@ -37,6 +38,12 @@ GLuint textureId;
 GLuint floorTextureId;
 
 int size = 4; // number of triangles to draw in scene
+
+Mesh *mesh;
+GLfloat *obj_verts;
+GLfloat *obj_normals;
+GLfloat *obj_lighting;
+GLuint *obj_elements;
 
 GLfloat vertices[] = {
 	-4, -4, 0.0, -2.0, -2.0, 
@@ -61,7 +68,7 @@ GLubyte elements[] = {
 // global matricies
 // specify by columns
 
-// move cube into box centered at (0,0,-5)
+// move cube into box centered at (0,0,-10)
 glm::mat4 view  = glm::mat4(glm::vec4(1.0, 0.0, 0.0, 0.0),
 				  glm::vec4(0.0, 1.0, 0.0, 0.0),
 				  glm::vec4(0.0, 0.0, 1.0, 0.0),
@@ -133,6 +140,18 @@ glm::mat4 scaleMatrix(float factor)
 }
 
 
+// walle turtle matrix:
+glm::mat4 rot_y = glm::mat4(glm::vec4(cos(M_PI/8), 0.0, sin(M_PI/8), 0.0),
+					glm::vec4(0.0, 1.0, 0.0, 0.0),
+					glm::vec4(-sin(M_PI/8), 0.0, cos(M_PI/8), 0.0),
+					glm::vec4(0.0, 0.0, 0.0, 1.0));
+
+// Rotate around x axis
+glm::mat4 rot_x = glm::mat4(glm::vec4(1.0, 0.0, 0.0, 0.0),
+					glm::vec4(0.0, cos(M_PI/3), sin(M_PI/3), 0.0),
+					glm::vec4(0.0, -sin(M_PI/3), cos(M_PI/3), 0.0),
+					glm::vec4(0.0, 0.0, 0.0, 1.0));
+
 
 
 // print out matrix by rows
@@ -151,6 +170,13 @@ void printMat(glm::mat4  mat)
 void moveCamera(float move) 
 {
 	cameraPosition[2] += move;
+	view[3] = cameraPosition;
+}
+
+// moves the camera view Left or Right (strafe)
+void moveCameraX(float move) 
+{
+	cameraPosition[0] += move;
 	view[3] = cameraPosition;
 }
 
@@ -287,6 +313,115 @@ int init_resources()
     return 0;
   }
 
+
+
+
+
+
+
+  /////////////////////////////////////////////
+  // Load up .obj files
+  /////////////////////////////////////////////
+	// READING IN .OBJ FILES
+	mesh = new Mesh; 
+	load_obj("./walle1.obj", mesh);
+
+	int size;
+	float max_x, max_y, max_z, min_x, min_y, min_z, len_x, len_y, len_z, mid_x, mid_y, mid_z;
+  max_x = max_y = max_z = FLT_MIN;
+  min_x = min_y = min_z = FLT_MAX;
+
+	// initialize vertices
+	size = mesh->vertices.size();
+	obj_verts = new GLfloat[size * 3];
+	for (int i = 0; i < size; i++)
+	{
+    // assign
+		obj_verts[(i*3)+0] = mesh->vertices[i][0];
+    obj_verts[(i*3)+1] = mesh->vertices[i][1];
+    obj_verts[(i*3)+2] = mesh->vertices[i][2];
+
+    // get the max/min of x/y/z
+    max_x = max(max_x,  obj_verts[i*3 + 0]);
+    max_y = max(max_y,  obj_verts[i*3 + 1]);
+    max_z = max(max_z,  obj_verts[i*3 + 2]);
+
+    min_x = min(min_x,  obj_verts[i*3 + 0]);
+    min_y = min(min_y,  obj_verts[i*3 + 1]);
+    min_z = min(min_z,  obj_verts[i*3 + 2]);
+	}
+
+  // initialize elements aka each triangle. 
+	size = mesh->elements.size();
+	obj_elements = new GLuint[size];
+	for (int i = 0; i < size / 3; i++)
+	{
+    // copy the 3 vertex indices for each triangle
+		obj_elements[i * 3 + 0] = mesh->elements[i * 3 + 0];
+    obj_elements[i * 3 + 1] = mesh->elements[i * 3 + 1];
+    obj_elements[i * 3 + 2] = mesh->elements[i * 3 + 2];
+	}
+
+
+	// initialize normals
+	size = mesh->normals.size();
+	obj_normals = new GLfloat[size * 3];
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			obj_normals[(i*3)+j] = mesh->normals[i][j];
+		}
+	}
+
+	// initialize lighting 1, a WHITE light
+	size = mesh->vertices.size(); // may not need
+	obj_lighting = new GLfloat[size * 3];
+	for (int i = 0; i < size; i++)
+	{
+		obj_lighting[i * 3 + 0] = 1.0;
+		obj_lighting[i * 3 + 1] = 1.0;
+		obj_lighting[i * 3 + 2] = 1.0;
+	}
+
+
+  // find the ranges of x,y,z
+  len_x = max_x - min_x;
+  len_y = max_y - min_y;
+  len_z = max_z - min_z;
+  // translate model to origin
+  mid_x = min_x + len_x/2.0;  // origin of model
+  mid_y = min_y + len_y/2.0;  // origin of model
+  mid_z = min_z + len_z/2.0;  // origin of model
+
+  // scale everything to fit into the (-1,-1,-1)-(1,1,1) cube
+  float max_dim = max(len_x, max(len_y, len_z));  // the largest dimension will be what we scale to
+  float scale = (2 / max_dim);
+  
+  // move to origin
+	for (int i = 0; i < size; i++)
+	{
+		obj_verts[i*3 + 0] = (obj_verts[i*3 + 0] - mid_x);
+    obj_verts[i*3 + 1] = (obj_verts[i*3 + 1] - mid_y);
+    obj_verts[i*3 + 2] = (obj_verts[i*3 + 2] - mid_z);
+	}
+
+  // scale
+	for (int i = 0; i < size; i++)
+	{
+		obj_verts[i*3 + 0] = (obj_verts[i*3 + 0] * scale);
+    obj_verts[i*3 + 1] = (obj_verts[i*3 + 1] * scale);
+    obj_verts[i*3 + 2] = (obj_verts[i*3 + 2] * scale);
+	}
+
+
+  // initial walle position
+  walleTurtleMatrix = translate(5,0,0)* rot_x * rot_y;
+
+
+
+
+
   // If all went well....
   return 1;
 }
@@ -307,6 +442,8 @@ void drawScene(void) {
   glEnableVertexAttribArray(attribute_coord3d);
   glEnableVertexAttribArray(attribute_texcoord);
 
+	//glEnableVertexAttribArray(attribute_normal);
+	//glEnableVertexAttribArray(attribute_lighting);
 
 
   /////////////////////////////////////////////
@@ -375,14 +512,41 @@ void drawScene(void) {
   glDrawElements(GL_TRIANGLES, 2*3, GL_UNSIGNED_BYTE, elements);  // draw the wall
 
 
+  ///////////////////////////////
+  // wall-e
+  ///////////////////////////////
+	glVertexAttribPointer(
+		attribute_coord3d, // attribute ID
+		3,                 // number of elements per vertex, here (x,y,z)
+		GL_FLOAT,          // the type of each element
+		GL_FALSE,          // take our values as-is, don't normalize
+		3*sizeof(float),  // stride between one position and the next
+		obj_verts
+	);
+
+	glUniformMatrix4fv(uniform_proj_matrix, 1, GL_FALSE, glm::value_ptr(projMatrix * walleTurtleMatrix));
+  
+  glDrawElements(GL_TRIANGLES, mesh->elements.size(), GL_UNSIGNED_INT, obj_elements);
 
   glDisableVertexAttribArray(attribute_coord3d);
   glDisableVertexAttribArray(attribute_texcoord);
 }
 
+void Timer(int extra)
+{ 
+    walleTurtleMatrix = walleTurtleMatrix * rotate_around_Z(.1);  // rotate in place
+    walleTurtleMatrix = rotate_around_Y(.1) * walleTurtleMatrix;  // rotate around origin
+    // move Walle object
+    //moveCameraX(0.2);  
+    glutPostRedisplay(); 
+    printf("timer!\n");
+    glutTimerFunc(1000,Timer,0);
+ 
+}
 
 void free_resources()
 {
 	glDeleteProgram(program);
 	glDeleteTextures(1,&textureId);
 }
+

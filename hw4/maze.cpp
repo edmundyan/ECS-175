@@ -48,10 +48,19 @@ void onIdle() {
 
 void keyPressed (unsigned char key, int x, int y) 
 {
-	if (key == 't') 
+  float degrees = 5;
+	if (key == 'w') 
 		moveCamera(0.2);
-	else if (key == 'b') 
+	else if (key == 's') 
 		moveCamera(-0.2);
+	else if (key == 'q') 
+		panCamera(M_PI/180 * degrees); // rotate left by degrees
+	else if (key == 'e') 
+		panCamera(-M_PI/180 * degrees); // rotate right by degrees
+	if (key == 'a') 
+		moveCameraX(0.2);
+	else if (key == 'd') 
+		moveCameraX(-0.2);
 	glutPostRedisplay();
 }
 
@@ -94,6 +103,8 @@ int main (int argc, char** argv) {
 	}
 
 
+  
+
 	// try to set up GPU to draw; if it works, fire off GLUT
 	if (init_resources()) {
 		// set display callback function
@@ -101,6 +112,7 @@ int main (int argc, char** argv) {
 		// set key press callback function
 		glutKeyboardFunc(keyPressed);
 		glutSpecialFunc(specialKeyPressed);
+    glutTimerFunc(1000,Timer,0);
 
 		// turn on depth buffering in OpenGL
 		glEnable(GL_DEPTH_TEST);
